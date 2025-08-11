@@ -1,7 +1,7 @@
 {
-  "name": "@sgnl/job-template",
+  "name": "@sgnl/job-generic-webhook",
   "version": "1.0.0",
-  "description": "Template for SGNL JavaScript jobs",
+  "description": "Generic webhook job for SGNL - makes HTTP requests with configurable methods, headers, and endpoints",
   "type": "commonjs",
   "main": "dist/index.js",
   "scripts": {
@@ -12,9 +12,9 @@
     "lint": "eslint src tests",
     "lint:fix": "eslint src tests --fix",
     "validate": "node scripts/validate-metadata.js",
-    "dev": "node scripts/dev-runner.js"
+    "dev": "node scripts/dev-runner.mjs"
   },
-  "keywords": ["sgnl", "job", "template", "identity", "security"],
+  "keywords": ["sgnl", "job", "webhook", "http", "rest", "api", "identity", "security"],
   "author": "SGNL Engineering",
   "license": "MIT",
   "dependencies": {

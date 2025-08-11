@@ -6,7 +6,8 @@ export default {
   output: {
     file: 'dist/index.js',
     format: 'cjs',
-    banner: '// SGNL Job Script - Auto-generated bundle'
+    banner: '// SGNL Job Script - Auto-generated bundle',
+    inlineDynamicImports: true
   },
   plugins: [
     nodeResolve({

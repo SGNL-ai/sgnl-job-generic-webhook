@@ -1,48 +1,81 @@
-name: job-template
-description: Template for SGNL JavaScript jobs - replace with your job description
+name: generic-webhook
+description: Generic HTTP webhook job for making REST API calls with configurable methods, headers, body, and endpoints
 
 # Input parameters for web form generation
 inputs:
-  target:
+  method:
     type: text
-    description: Target resource identifier (e.g., user email, group ID)
+    description: HTTP method (GET, POST, PUT, DELETE, PATCH, etc.)
     required: true
     validation:
-      min: 1
-      max: 100
+      min: 3
+      max: 10
+    default: "POST"
 
-  action:
+  address:
     type: text
-    description: Action to perform on the target resource
+    description: Target URL for the webhook request
     required: true
     validation:
-      min: 1
-      max: 50
+      min: 8
+      max: 500
 
-  options:
-    type: array
-    description: Additional options for the operation
+  addressSuffix:
+    type: text
+    description: URL path suffix to append to base address (e.g., "/api/v1/users")
     required: false
-    item_type: text
+    validation:
+      min: 1
+      max: 200
+
+  requestBody:
+    type: text
+    description: JSON string for request body (for POST, PUT, PATCH requests)
+    required: false
+    validation:
+      max: 10000
+
+  requestHeaders:
+    type: text
+    description: JSON string of custom HTTP headers (e.g., '{"Content-Type":"application/json"}')
+    required: false
+    validation:
+      max: 2000
+
+  acceptedStatusCodes:
+    type: array
+    description: Additional HTTP status codes to treat as success (e.g., [404] for delete operations)
+    required: false
+    item_type: number
     validation:
       max: 10
-
-  dry_run:
-    type: boolean
-    description: Preview changes without executing them
-    required: false
-    default: false
 
 # Expected output structure
 outputs:
   status:
     type: text
-    description: Operation result (success, failed, recovered, etc.)
+    description: Request result (success, http_error, timeout_error, etc.)
 
-  target:
+  status_code:
+    type: number
+    description: HTTP response status code
+
+  body:
     type: text
-    description: The target resource that was processed
+    description: HTTP response body
+
+  headers:
+    type: object
+    description: HTTP response headers
+
+  url:
+    type: text
+    description: The actual URL that was requested
+
+  method:
+    type: text
+    description: The HTTP method that was used
 
   processed_at:
     type: datetime
-    description: When the operation completed (ISO 8601)
+    description: When the request completed (ISO 8601)

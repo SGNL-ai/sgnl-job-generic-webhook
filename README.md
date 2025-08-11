@@ -163,7 +163,7 @@ Reference your job in a JobSpec:
 ```json
 {
   "id": "my-job-123",
-  "type": "nodejs-20",
+  "type": "nodejs-22",
   "script": {
     "repository": "github.com/your-org/your-job-repo",
     "version": "v1.0.0",

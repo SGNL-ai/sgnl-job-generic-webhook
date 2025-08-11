@@ -14,15 +14,14 @@ const mockContext = {
     API_KEY: 'dev-test-key-123456'
   },
   outputs: {},
-  partial_results: {},
-  current_step: 'start'
+  partial_results: {}
 };
 
 const mockParams = {
-  target: 'dev-test@example.com',
-  action: 'create',
-  options: ['notify', 'audit'],
-  dry_run: false
+  method: 'POST',
+  address: 'https://ominous-space-waffle-qjxpjprv7wh947r-8080.app.github.dev/',
+  requestBody: '{"message": "Hello from SGNL Generic Webhook!", "timestamp": "' + new Date().toISOString() + '"}',
+  requestHeaders: '{"Content-Type": "application/json", "X-Test-Header": "development"}'
 };
 
 async function runDev() {

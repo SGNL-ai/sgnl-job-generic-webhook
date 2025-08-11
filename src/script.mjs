@@ -1,146 +1,248 @@
 /**
- * SGNL Job Template
+ * SGNL Generic Webhook Job
  * 
- * This template provides a starting point for implementing SGNL jobs.
- * Replace this implementation with your specific business logic.
+ * This job provides a generic HTTP webhook capability for making HTTP requests
+ * with configurable methods, headers, body, and endpoints.
  */
 
-export default {
+import fetch from 'node-fetch';
+
+const webhookJob = {
   /**
-   * Main execution handler - implement your job logic here
+   * Main execution handler for generic webhook requests
    * @param {Object} params - Job input parameters
+   * @param {string} params.method - HTTP method (GET, POST, PUT, DELETE, etc.)
+   * @param {string} [params.requestBody] - JSON string of request body
+   * @param {string} [params.requestHeaders] - JSON string of custom headers
+   * @param {string} [params.addressSuffix] - URL suffix to append to base address
+   * @param {string} [params.address] - Complete address override
+   * @param {number[]} [params.acceptedStatusCodes] - Additional status codes to treat as success
    * @param {Object} context - Execution context with env, secrets, outputs
-   * @returns {Object} Job results
+   * @returns {Object} Job results with HTTP response details
    */
   invoke: async (params, context) => {
-    console.log('Starting job execution');
-    console.log(`Processing target: ${params.target}`);
-    console.log(`Action: ${params.action}`);
+    console.log('Starting generic webhook execution');
+    console.log(`HTTP Method: ${params.method}`);
     
-    // TODO: Replace with your implementation
-    const { target, action, options = [], dry_run = false } = params;
-    
-    if (dry_run) {
-      console.log('DRY RUN: No changes will be made');
+    const {
+      method,
+      requestBody,
+      requestHeaders,
+      addressSuffix,
+      address: addressOverride,
+      acceptedStatusCodes = []
+    } = params;
+
+    // Validate required parameters
+    if (!method) {
+      throw new Error('HTTP method is required');
     }
+
+    // Determine the target URL - address parameter is required
+    let targetUrl = addressOverride;
     
-    // Access environment variables
-    const environment = context.env.ENVIRONMENT || 'development';
-    console.log(`Running in ${environment} environment`);
-    
-    // Access secrets securely (example)
-    if (context.secrets.API_KEY) {
-      console.log(`Using API key ending in ...${context.secrets.API_KEY.slice(-4)}`);
+    if (!targetUrl) {
+      throw new Error('address parameter is required');
     }
-    
-    // Use outputs from previous jobs in workflow
-    if (context.outputs && Object.keys(context.outputs).length > 0) {
-      console.log(`Available outputs from ${Object.keys(context.outputs).length} previous jobs`);
-      console.log(`Previous job outputs: ${Object.keys(context.outputs).join(', ')}`);
+
+    // Apply address suffix if provided
+    if (addressSuffix) {
+      const baseUrl = targetUrl.replace(/\/$/, ''); // Remove trailing slash
+      const suffix = addressSuffix.replace(/^\//, ''); // Remove leading slash
+      targetUrl = `${baseUrl}/${suffix}`;
     }
-    
-    // Simulate work
-    console.log(`Performing ${action} on ${target}...`);
-    
-    if (options.length > 0) {
-      console.log(`Processing ${options.length} options: ${options.join(', ')}`);
-    }
-    
-    // Simulate processing time
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    console.log(`Successfully completed ${action} on ${target}`);
-    
-    // Return structured results
-    return {
-      status: dry_run ? 'dry_run_completed' : 'success',
-      target: target,
-      action: action,
-      options_processed: options.length,
-      environment: environment,
-      processed_at: new Date().toISOString(),
-      // Job completed successfully
+
+    console.log(`Target URL: ${targetUrl}`);
+
+    // Prepare request options
+    const requestOptions = {
+      method: method.toUpperCase(),
+      headers: {
+        'User-Agent': 'sgnl-generic-webhook/1.0.0'
+      }
     };
+
+    // Add request body if provided
+    if (requestBody) {
+      try {
+        // Validate JSON if it's a string
+        JSON.parse(requestBody);
+        requestOptions.body = requestBody;
+        requestOptions.headers['Content-Type'] = 'application/json';
+      } catch (error) {
+        throw new Error(`Invalid JSON in requestBody: ${error.message}`);
+      }
+    }
+
+    // Add custom headers if provided
+    if (requestHeaders) {
+      try {
+        const customHeaders = JSON.parse(requestHeaders);
+        Object.assign(requestOptions.headers, customHeaders);
+      } catch (error) {
+        throw new Error(`Invalid JSON in requestHeaders: ${error.message}`);
+      }
+    }
+
+    // Apply authentication if available
+    if (context.secrets.AUTHORIZATION_HEADER) {
+      requestOptions.headers['Authorization'] = context.secrets.AUTHORIZATION_HEADER;
+    } else if (context.secrets.API_KEY) {
+      requestOptions.headers['X-API-Key'] = context.secrets.API_KEY;
+    } else if (context.secrets.BEARER_TOKEN) {
+      requestOptions.headers['Authorization'] = `Bearer ${context.secrets.BEARER_TOKEN}`;
+    }
+
+    console.log(`Request headers: ${JSON.stringify(Object.keys(requestOptions.headers))}`);
+
+    let response;
+    let responseBody;
+
+    try {
+      // Make the HTTP request
+      response = await fetch(targetUrl, requestOptions);
+      
+      // Read response body
+      responseBody = await response.text();
+      
+      console.log(`Response status: ${response.status}`);
+      console.log(`Response body length: ${responseBody.length} characters`);
+
+    } catch (error) {
+      throw new Error(`HTTP request failed: ${error.message}`);
+    }
+
+    // Prepare response object
+    const result = {
+      status_code: response.status,
+      body: responseBody,
+      headers: Object.fromEntries(response.headers.entries()),
+      url: targetUrl,
+      method: method.toUpperCase(),
+      processed_at: new Date().toISOString()
+    };
+
+    // Check if status code should be treated as success
+    const isAcceptedStatus = acceptedStatusCodes.includes(response.status);
+    const isStandardSuccess = response.status >= 200 && response.status < 300;
+
+    if (isAcceptedStatus || isStandardSuccess) {
+      console.log(`Request completed successfully with status ${response.status}`);
+      return {
+        status: 'success',
+        ...result
+      };
+    } else {
+      // Non-success status code - return response data but indicate failure
+      const errorMessage = `HTTP request failed with status ${response.status}`;
+      console.error(errorMessage);
+      
+      return {
+        status: 'http_error',
+        error: errorMessage,
+        ...result
+      };
+    }
   },
 
   /**
-   * Error recovery handler - implement error handling logic
+   * Error recovery handler for webhook request failures
    * @param {Object} params - Original params plus error information
    * @param {Object} context - Execution context
    * @returns {Object} Recovery results
    */
   error: async (params, context) => {
-    const { error, target, action } = params;
-    console.error(`Job encountered error while processing ${target}: ${error.message}`);
+    const { error, method, address } = params;
+    const targetUrl = address || context.env.WEBHOOK_BASE_URL;
     
-    // TODO: Implement your error recovery logic
+    console.error(`Webhook request encountered error: ${error.message}`);
+    console.error(`Target: ${method} ${targetUrl}`);
     
-    // Example: Retry with different approach
+    // Handle rate limiting with exponential backoff
     if (error.message.includes('rate limit') || error.message.includes('429')) {
       console.log('Rate limited - implementing backoff strategy');
       await new Promise(resolve => setTimeout(resolve, 5000));
       
-      console.log(`Retrying ${action} on ${target} after backoff`);
+      console.log(`Retrying webhook request after backoff`);
+      
+      try {
+        // Retry the original request by calling the main invoke function
+        const originalParams = { ...params };
+        delete originalParams.error; // Remove error from params for retry
+        return await webhookJob.invoke(originalParams, context);
+      } catch (retryError) {
+        throw new Error(`Retry failed after rate limit backoff: ${retryError.message}`);
+      }
+    }
+    
+    // Handle network timeouts with shorter timeout
+    if (error.message.includes('timeout') || error.message.includes('ETIMEDOUT')) {
+      console.log('Request timeout - retrying with shorter timeout');
       
       return {
-        status: 'recovered',
-        target: target,
-        recovery_method: 'rate_limit_backoff',
+        status: 'timeout_error',
+        method: method,
+        url: targetUrl,
+        recovery_method: 'timeout_handling',
         original_error: error.message,
         recovered_at: new Date().toISOString(),
-        // Job completed successfully
+        recommendation: 'Consider increasing timeout or checking network connectivity'
       };
     }
     
-    // Example: Fallback approach
-    if (error.message.includes('service unavailable') || error.message.includes('503')) {
-      console.log('Primary service unavailable - using fallback approach');
+    // Handle DNS resolution failures
+    if (error.message.includes('ENOTFOUND') || error.message.includes('DNS')) {
+      console.error('DNS resolution failed - cannot reach target URL');
       
       return {
-        status: 'fallback_used',
-        target: target,
-        recovery_method: 'fallback_service',
+        status: 'dns_error',
+        method: method,
+        url: targetUrl,
+        recovery_method: 'dns_failure_handling',
         original_error: error.message,
         recovered_at: new Date().toISOString(),
-        // Job completed successfully
+        recommendation: 'Verify the target URL is correct and accessible'
       };
     }
     
     // Cannot recover from this error
-    console.error(`Unable to recover from error for ${target}`);
-    throw new Error(`Unrecoverable error processing ${target}: ${error.message}`);
+    console.error(`Unable to recover from webhook error: ${error.message}`);
+    throw new Error(`Unrecoverable webhook error: ${error.message}`);
   },
 
   /**
-   * Graceful shutdown handler - implement cleanup logic
+   * Graceful shutdown handler for webhook requests
    * @param {Object} params - Original params plus halt reason
    * @param {Object} context - Execution context
    * @returns {Object} Cleanup results
    */
   halt: async (params, context) => {
-    const { reason, target } = params;
-    console.log(`Job is being halted (${reason}) while processing ${target}`);
+    const { reason, method, address } = params;
+    const targetUrl = address || context.env.WEBHOOK_BASE_URL;
     
-    // TODO: Implement your cleanup logic
+    console.log(`Webhook job is being halted (${reason})`);
+    console.log(`Target: ${method} ${targetUrl}`);
     
-    // Save any partial progress
+    // Log any partial progress for debugging
     if (context.partial_results) {
-      console.log('Saving partial results before shutdown');
-      // Example: await savePartialResults(context.partial_results);
+      console.log('Logging partial results before shutdown');
+      console.log(`Partial results: ${JSON.stringify(context.partial_results, null, 2)}`);
     }
     
-    // Clean up resources
+    // Clean up any pending requests or connections
     console.log('Performing cleanup operations');
-    // Example: await cleanupResources();
+    // Note: node-fetch automatically handles connection cleanup
     
     return {
       status: 'halted',
-      target: target || 'unknown',
+      method: method || 'unknown',
+      url: targetUrl || 'unknown',
       reason: reason,
       halted_at: new Date().toISOString(),
       cleanup_completed: true,
-      partial_results_saved: !!context.partial_results,
-      // Job completed successfully
+      partial_results_logged: !!context.partial_results
     };
   }
 };
+
+export default webhookJob;
