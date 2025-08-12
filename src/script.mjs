@@ -5,7 +5,7 @@
  * with configurable methods, headers, body, and endpoints.
  */
 
-import fetch from 'node-fetch';
+// Using built-in fetch available in Node.js 18+
 
 const webhookJob = {
   /**
@@ -231,7 +231,7 @@ const webhookJob = {
     
     // Clean up any pending requests or connections
     console.log('Performing cleanup operations');
-    // Note: node-fetch automatically handles connection cleanup
+    // Note: built-in fetch automatically handles connection cleanup
     
     return {
       status: 'halted',

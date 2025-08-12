@@ -14,17 +14,23 @@
     "validate": "node scripts/validate-metadata.js",
     "dev": "node scripts/dev-runner.mjs"
   },
-  "keywords": ["sgnl", "job", "webhook", "http", "rest", "api", "identity", "security"],
+  "keywords": [
+    "sgnl",
+    "job",
+    "webhook",
+    "http",
+    "rest",
+    "api",
+    "identity",
+    "security"
+  ],
   "author": "SGNL Engineering",
   "license": "MIT",
-  "dependencies": {
-    "node-fetch": "^3.3.0"
-  },
   "devDependencies": {
-    "@rollup/plugin-node-resolve": "^15.0.0",
     "@rollup/plugin-commonjs": "^24.0.0",
-    "rollup": "^3.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "eslint": "^8.0.0",
     "jest": "^29.0.0",
-    "eslint": "^8.0.0"
+    "rollup": "^3.0.0"
   }
 }
