@@ -1,9 +1,7 @@
 // SGNL Job Script - Auto-generated bundle
-'use strict';
-
-var https = require('https');
-var http = require('http');
-var url = require('url');
+import https from 'https';
+import http from 'http';
+import { URL } from 'url';
 
 /**
  * SGNL Generic Webhook Job
@@ -19,9 +17,9 @@ var url = require('url');
  * @param {Object} options - Request options (method, headers, body)
  * @returns {Promise<{response: Object, body: string}>}
  */
-function makeHttpRequest(url$1, options) {
+function makeHttpRequest(url, options) {
   return new Promise((resolve, reject) => {
-    const parsedUrl = new url.URL(url$1);
+    const parsedUrl = new URL(url);
     const isHttps = parsedUrl.protocol === 'https:';
     const httpModule = isHttps ? https : http;
     
@@ -298,4 +296,4 @@ const webhookJob = {
   }
 };
 
-module.exports = webhookJob;
+export { webhookJob as default };
