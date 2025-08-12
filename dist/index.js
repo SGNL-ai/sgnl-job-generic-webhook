@@ -1,6 +1,4 @@
 // SGNL Job Script - Auto-generated bundle
-'use strict';
-
 /**
  * SGNL Generic Webhook Job
  * 
@@ -11,18 +9,20 @@
 // Using Node.js built-ins directly without imports (like hello-world example)
 
 /**
- * Makes HTTP request using native Node.js modules
+ * Makes HTTP request using dynamic imports
  * @param {string} url - Target URL
  * @param {Object} options - Request options (method, headers, body)
  * @returns {Promise<{response: Object, body: string}>}
  */
-function makeHttpRequest(url, options) {
+async function makeHttpRequest(url, options) {
+  // Use dynamic imports inside the function
+  const { URL } = await import('url');
+  const parsedUrl = new URL(url);
+  const isHttps = parsedUrl.protocol === 'https:';
+  
+  const httpModule = isHttps ? await import('https') : await import('http');
+  
   return new Promise((resolve, reject) => {
-    const { URL } = require('url');
-    const parsedUrl = new URL(url);
-    const isHttps = parsedUrl.protocol === 'https:';
-    const httpModule = isHttps ? require('https') : require('http');
-    
     const requestOptions = {
       hostname: parsedUrl.hostname,
       port: parsedUrl.port || (isHttps ? 443 : 80),
@@ -31,7 +31,7 @@ function makeHttpRequest(url, options) {
       headers: options.headers
     };
 
-    const req = httpModule.request(requestOptions, (res) => {
+    const req = httpModule.default.request(requestOptions, (res) => {
       let body = '';
       
       res.on('data', (chunk) => {
@@ -296,4 +296,4 @@ const webhookJob = {
   }
 };
 
-module.exports = webhookJob;
+export { webhookJob as default };
