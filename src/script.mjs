@@ -5,9 +5,7 @@
  * with configurable methods, headers, body, and endpoints.
  */
 
-import https from 'https';
-import http from 'http';
-import { URL } from 'url';
+// Using Node.js built-ins directly without imports (like hello-world example)
 
 /**
  * Makes HTTP request using native Node.js modules
@@ -19,7 +17,7 @@ function makeHttpRequest(url, options) {
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(url);
     const isHttps = parsedUrl.protocol === 'https:';
-    const httpModule = isHttps ? https : http;
+    const httpModule = isHttps ? require('https') : require('http');
     
     const requestOptions = {
       hostname: parsedUrl.hostname,

@@ -1,10 +1,6 @@
 // SGNL Job Script - Auto-generated bundle
 'use strict';
 
-var https = require('https');
-var http = require('http');
-var url = require('url');
-
 /**
  * SGNL Generic Webhook Job
  * 
@@ -12,6 +8,7 @@ var url = require('url');
  * with configurable methods, headers, body, and endpoints.
  */
 
+// Using Node.js built-ins directly without imports (like hello-world example)
 
 /**
  * Makes HTTP request using native Node.js modules
@@ -19,11 +16,11 @@ var url = require('url');
  * @param {Object} options - Request options (method, headers, body)
  * @returns {Promise<{response: Object, body: string}>}
  */
-function makeHttpRequest(url$1, options) {
+function makeHttpRequest(url, options) {
   return new Promise((resolve, reject) => {
-    const parsedUrl = new url.URL(url$1);
+    const parsedUrl = new URL(url);
     const isHttps = parsedUrl.protocol === 'https:';
-    const httpModule = isHttps ? https : http;
+    const httpModule = isHttps ? require('https') : require('http');
     
     const requestOptions = {
       hostname: parsedUrl.hostname,
