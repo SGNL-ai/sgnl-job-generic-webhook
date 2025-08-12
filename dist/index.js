@@ -7240,11 +7240,11 @@ const webhookJob = {
       throw new Error('HTTP method is required');
     }
 
-    // Determine the target URL
-    let targetUrl = addressOverride || context.env.WEBHOOK_BASE_URL;
+    // Determine the target URL - address parameter is required
+    let targetUrl = addressOverride;
     
     if (!targetUrl) {
-      throw new Error('Either address parameter or WEBHOOK_BASE_URL environment variable must be provided');
+      throw new Error('address parameter is required');
     }
 
     // Apply address suffix if provided
