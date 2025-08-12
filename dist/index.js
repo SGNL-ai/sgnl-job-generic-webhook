@@ -11,53 +11,93 @@
 // Using Node.js built-ins directly without imports (like hello-world example)
 
 /**
- * Makes HTTP request using dynamic imports
+ * Makes HTTP request using only VM-available globals
  * @param {string} url - Target URL
  * @param {Object} options - Request options (method, headers, body)
  * @returns {Promise<{response: Object, body: string}>}
  */
-async function makeHttpRequest(url, options) {
-  // Use dynamic imports inside the function
-  const { URL } = await import('url');
-  const parsedUrl = new URL(url);
-  const isHttps = parsedUrl.protocol === 'https:';
-  
-  const httpModule = isHttps ? await import('https') : await import('http');
-  
+function makeHttpRequest(url, options) {
   return new Promise((resolve, reject) => {
-    const requestOptions = {
-      hostname: parsedUrl.hostname,
-      port: parsedUrl.port || (isHttps ? 443 : 80),
-      path: parsedUrl.pathname + parsedUrl.search,
-      method: options.method,
-      headers: options.headers
-    };
+    try {
+      // Try to parse URL without imports - use global URL if available
+      let parsedUrl;
+      if (typeof URL !== 'undefined') {
+        parsedUrl = new URL(url);
+      } else {
+        // Manual URL parsing fallback
+        const urlMatch = url.match(/^(https?):\/\/([^\/]+)(\/.*)?$/);
+        if (!urlMatch) {
+          reject(new Error('Invalid URL format'));
+          return;
+        }
+        parsedUrl = {
+          protocol: urlMatch[1] + ':',
+          hostname: urlMatch[2].split(':')[0],
+          port: urlMatch[2].includes(':') ? urlMatch[2].split(':')[1] : (urlMatch[1] === 'https' ? 443 : 80),
+          pathname: urlMatch[3] || '/',
+          search: ''
+        };
+      }
 
-    const req = httpModule.default.request(requestOptions, (res) => {
-      let body = '';
+      const isHttps = parsedUrl.protocol === 'https:';
       
-      res.on('data', (chunk) => {
-        body += chunk;
-      });
+      // Try to access http/https modules via global object or process
+      let httpModule;
+      if (typeof global !== 'undefined' && global.process && global.process.binding) {
+        try {
+          httpModule = global.process.binding(isHttps ? 'https' : 'http');
+        } catch (e) {
+          // Binding might not be available
+        }
+      }
       
-      res.on('end', () => {
-        resolve({
-          response: res,
-          body: body
+      if (!httpModule) {
+        // Last resort: maybe the modules are available as globals
+        httpModule = isHttps ? (global.https || https) : (global.http || http);
+      }
+      
+      if (!httpModule || !httpModule.request) {
+        reject(new Error('HTTP modules not available in VM context'));
+        return;
+      }
+
+      const requestOptions = {
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || (isHttps ? 443 : 80),
+        path: parsedUrl.pathname + parsedUrl.search,
+        method: options.method,
+        headers: options.headers
+      };
+
+      const req = httpModule.request(requestOptions, (res) => {
+        let body = '';
+        
+        res.on('data', (chunk) => {
+          body += chunk;
+        });
+        
+        res.on('end', () => {
+          resolve({
+            response: res,
+            body: body
+          });
         });
       });
-    });
 
-    req.on('error', (error) => {
+      req.on('error', (error) => {
+        reject(error);
+      });
+
+      // Write request body if provided
+      if (options.body) {
+        req.write(options.body);
+      }
+
+      req.end();
+      
+    } catch (error) {
       reject(error);
-    });
-
-    // Write request body if provided
-    if (options.body) {
-      req.write(options.body);
     }
-
-    req.end();
   });
 }
 
