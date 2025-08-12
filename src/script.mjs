@@ -5,7 +5,57 @@
  * with configurable methods, headers, body, and endpoints.
  */
 
-// Using built-in fetch available in Node.js 18+
+import https from 'https';
+import http from 'http';
+import { URL } from 'url';
+
+/**
+ * Makes HTTP request using native Node.js modules
+ * @param {string} url - Target URL
+ * @param {Object} options - Request options (method, headers, body)
+ * @returns {Promise<{response: Object, body: string}>}
+ */
+function makeHttpRequest(url, options) {
+  return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(url);
+    const isHttps = parsedUrl.protocol === 'https:';
+    const httpModule = isHttps ? https : http;
+    
+    const requestOptions = {
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port || (isHttps ? 443 : 80),
+      path: parsedUrl.pathname + parsedUrl.search,
+      method: options.method,
+      headers: options.headers
+    };
+
+    const req = httpModule.request(requestOptions, (res) => {
+      let body = '';
+      
+      res.on('data', (chunk) => {
+        body += chunk;
+      });
+      
+      res.on('end', () => {
+        resolve({
+          response: res,
+          body: body
+        });
+      });
+    });
+
+    req.on('error', (error) => {
+      reject(error);
+    });
+
+    // Write request body if provided
+    if (options.body) {
+      req.write(options.body);
+    }
+
+    req.end();
+  });
+}
 
 const webhookJob = {
   /**
@@ -99,13 +149,12 @@ const webhookJob = {
     let responseBody;
 
     try {
-      // Make the HTTP request
-      response = await fetch(targetUrl, requestOptions);
+      // Make the HTTP request using native Node.js modules
+      const result = await makeHttpRequest(targetUrl, requestOptions);
+      response = result.response;
+      responseBody = result.body;
       
-      // Read response body
-      responseBody = await response.text();
-      
-      console.log(`Response status: ${response.status}`);
+      console.log(`Response status: ${response.statusCode}`);
       console.log(`Response body length: ${responseBody.length} characters`);
 
     } catch (error) {
@@ -113,34 +162,34 @@ const webhookJob = {
     }
 
     // Prepare response object
-    const result = {
-      status_code: response.status,
+    const jobResult = {
+      status_code: response.statusCode,
       body: responseBody,
-      headers: Object.fromEntries(response.headers.entries()),
+      headers: response.headers,
       url: targetUrl,
       method: method.toUpperCase(),
       processed_at: new Date().toISOString()
     };
 
     // Check if status code should be treated as success
-    const isAcceptedStatus = acceptedStatusCodes.includes(response.status);
-    const isStandardSuccess = response.status >= 200 && response.status < 300;
+    const isAcceptedStatus = acceptedStatusCodes.includes(response.statusCode);
+    const isStandardSuccess = response.statusCode >= 200 && response.statusCode < 300;
 
     if (isAcceptedStatus || isStandardSuccess) {
-      console.log(`Request completed successfully with status ${response.status}`);
+      console.log(`Request completed successfully with status ${response.statusCode}`);
       return {
         status: 'success',
-        ...result
+        ...jobResult
       };
     } else {
       // Non-success status code - return response data but indicate failure
-      const errorMessage = `HTTP request failed with status ${response.status}`;
+      const errorMessage = `HTTP request failed with status ${response.statusCode}`;
       console.error(errorMessage);
       
       return {
         status: 'http_error',
         error: errorMessage,
-        ...result
+        ...jobResult
       };
     }
   },
