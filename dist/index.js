@@ -1,4 +1,6 @@
 // SGNL Job Script - Auto-generated bundle
+'use strict';
+
 /**
  * SGNL Generic Webhook Job
  * 
@@ -296,4 +298,4 @@ const webhookJob = {
   }
 };
 
-export { webhookJob as default };
+module.exports = webhookJob;
