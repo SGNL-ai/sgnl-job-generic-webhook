@@ -15,6 +15,7 @@
  */
 function makeHttpRequest(url, options) {
   return new Promise((resolve, reject) => {
+    const { URL } = require('url');
     const parsedUrl = new URL(url);
     const isHttps = parsedUrl.protocol === 'https:';
     const httpModule = isHttps ? require('https') : require('http');
